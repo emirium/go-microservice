@@ -6,8 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/emirium/go-microservice/model"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/emirium/go-microservice/model"
 )
 
 type RedisRepo struct {
@@ -21,7 +22,7 @@ func orderIDKey(id uint64) string {
 func (r *RedisRepo) Insert(ctx context.Context, order model.Order) error {
 	data, err := json.Marshal(order)
 	if err != nil {
-		return fmt.Errorf("Failed to encode order: %w", err)
+		return fmt.Errorf("failed to encode order: %w", err)
 	}
 
 	key := orderIDKey(order.OrderID)
@@ -31,22 +32,22 @@ func (r *RedisRepo) Insert(ctx context.Context, order model.Order) error {
 	res := txn.SetNX(ctx, key, string(data), 0)
 	if err := res.Err(); err != nil {
 		txn.Discard()
-		return fmt.Errorf("Failed to set: %w", err)
+		return fmt.Errorf("failed to set: %w", err)
 	}
 
 	if err := txn.SAdd(ctx, "orders", key).Err(); err != nil {
 		txn.Discard()
-		return fmt.Errorf("Failed to add to orders set: %w", err)
+		return fmt.Errorf("failed to add to orders set: %w", err)
 	}
 
 	if _, err := txn.Exec(ctx); err != nil {
-		return fmt.Errorf("Failed to exec: %w", err)
+		return fmt.Errorf("failed to exec: %w", err)
 	}
 
 	return nil
 }
 
-var ErrNotExist = errors.New("Order does not exist")
+var ErrNotExist = errors.New("order does not exist")
 
 func (r *RedisRepo) FindByID(ctx context.Context, id uint64) (model.Order, error) {
 	key := orderIDKey(id)
@@ -55,13 +56,13 @@ func (r *RedisRepo) FindByID(ctx context.Context, id uint64) (model.Order, error
 	if errors.Is(err, redis.Nil) {
 		return model.Order{}, ErrNotExist
 	} else if err != nil {
-		return model.Order{}, fmt.Errorf("Get order: %w", err)
+		return model.Order{}, fmt.Errorf("get order: %w", err)
 	}
 
 	var order model.Order
 	err = json.Unmarshal([]byte(value), &order)
 	if err != nil {
-		return model.Order{}, fmt.Errorf("Failed to decode order json: %w", err)
+		return model.Order{}, fmt.Errorf("failed to decode order json: %w", err)
 	}
 
 	return order, nil
@@ -78,16 +79,16 @@ func (r *RedisRepo) DeleteByID(ctx context.Context, id uint64) error {
 		return ErrNotExist
 	} else if err != nil {
 		txn.Discard()
-		return fmt.Errorf("Get order: %w", err)
+		return fmt.Errorf("get order: %w", err)
 	}
 
 	if err := txn.SRem(ctx, "orders", key).Err(); err != nil {
 		txn.Discard()
-		return fmt.Errorf("Failed to remove from orders set: %w", err)
+		return fmt.Errorf("failed to remove from orders set: %w", err)
 	}
 
 	if _, err := txn.Exec(ctx); err != nil {
-		return fmt.Errorf("Failed to exec: %w", err)
+		return fmt.Errorf("failed to exec: %w", err)
 	}
 
 	return nil
@@ -96,7 +97,7 @@ func (r *RedisRepo) DeleteByID(ctx context.Context, id uint64) error {
 func (r *RedisRepo) Update(ctx context.Context, order model.Order) error {
 	data, err := json.Marshal(order)
 	if err != nil {
-		return fmt.Errorf("Failed to encode order: %w", err)
+		return fmt.Errorf("failed to encode order: %w", err)
 	}
 
 	key := orderIDKey(order.OrderID)
@@ -105,14 +106,14 @@ func (r *RedisRepo) Update(ctx context.Context, order model.Order) error {
 	if errors.Is(err, redis.Nil) {
 		return ErrNotExist
 	} else if err != nil {
-		return fmt.Errorf("Set order: %w", err)
+		return fmt.Errorf("set order: %w", err)
 	}
 
 	return nil
 }
 
 type FindAllPage struct {
-	Size uint64
+	Size   uint64
 	Offset uint64
 }
 
@@ -126,16 +127,18 @@ func (r *RedisRepo) FindAll(ctx context.Context, page FindAllPage) (FindResult, 
 
 	keys, cursor, err := res.Result()
 	if err != nil {
-		return FindResult{}, fmt.Errorf("Failed to get order ids: %w", err)
+		return FindResult{}, fmt.Errorf("failed to get order ids: %w", err)
 	}
 
 	if len(keys) == 0 {
-		return FindResult{Orders: []model.Order{},}, nil
+		return FindResult{
+			Orders: []model.Order{},
+		}, nil
 	}
 
 	xs, err := r.Client.MGet(ctx, keys...).Result()
 	if err != nil {
-		return FindResult{}, fmt.Errorf("Failed to get orders: %w", err)
+		return FindResult{}, fmt.Errorf("failed to get orders: %w", err)
 	}
 
 	orders := make([]model.Order, len(xs))
@@ -146,11 +149,14 @@ func (r *RedisRepo) FindAll(ctx context.Context, page FindAllPage) (FindResult, 
 
 		err := json.Unmarshal([]byte(x), &order)
 		if err != nil {
-			return FindResult{}, fmt.Errorf("Failed to decode order json: %w", err)
+			return FindResult{}, fmt.Errorf("failed to decode order json: %w", err)
 		}
 
 		orders[i] = order
 	}
 
-	return FindResult{Orders: orders, Cursor: cursor}, nil
+	return FindResult{
+		Orders: orders,
+		Cursor: cursor,
+	}, nil
 }
