@@ -1,2 +1,2 @@
 # go-microservice
- Simple microservice app with Go, Chi, Redis
+ Simple microservice app with Go, Chi & Redis
